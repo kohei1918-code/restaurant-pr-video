@@ -393,11 +393,14 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 // ffmpeg.wasm 0.12.15 を同一オリジンで自前ホスト
-const { FFmpeg } = FFmpegWASM;
 let ffmpeg = null;
 
 async function loadFFmpeg() {
   if (ffmpeg) return ffmpeg;
+  if (typeof FFmpegWASM === "undefined") {
+    throw new Error("ffmpeg.js が読み込まれていません。/ffmpeg.js が404でないか確認してください（vercel.jsonのリライト設定を要確認）。");
+  }
+  const { FFmpeg } = FFmpegWASM;
   ffmpeg = new FFmpeg();
   ffmpeg.on("progress", ({ progress }) => {
     const p = Math.max(0, Math.min(100, Math.round(progress * 100)));
