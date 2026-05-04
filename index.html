@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>飲食店PRソング動画ジェネレーター</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --card: #ffffff;
+    --border: #e7e5e4;
+    --primary: #d97706;
+    --primary-hover: #b45309;
+    --accent: #0891b2;
+    --success: #059669;
+    --text: #1c1917;
+    --muted: #78716c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px 16px;
+    line-height: 1.6;
+  }
+  .container { max-width: 760px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 24px; }
+  header h1 { margin: 0 0 6px; font-size: 22px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .step h2 { margin: 0 0 14px; font-size: 17px; }
+  .step h3 { margin: 16px 0 8px; font-size: 13px; color: var(--muted); }
+  label { display: block; font-size: 13px; margin-bottom: 10px; }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: white;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  button:hover { filter: brightness(0.92); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.accent { background: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
+  .lyrics-grid { display: grid; gap: 8px; margin-top: 12px; }
+  .lyric-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 10px;
+    align-items: center;
+  }
+  .lyric-row label { margin: 0; font-size: 12px; color: var(--muted); }
+  .video-uploads {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 480px) {
+    .video-uploads { grid-template-columns: 1fr; }
+  }
+  .video-slot {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .video-slot input {
+    display: block;
+    margin: 8px auto 0;
+    font-size: 11px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .video-slot.filled { border-color: var(--primary); background: #fef3c7; }
+  #progress {
+    background: #f5f5f4;
+    border-radius: 4px;
+    height: 8px;
+    margin: 12px 0 0;
+    overflow: hidden;
+  }
+  #progressBar {
+    background: var(--primary);
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s;
+  }
+  #status { font-size: 13px; color: var(--muted); margin: 8px 0 0; min-height: 20px; }
+  video { max-width: 100%; margin-top: 12px; border-radius: 8px; background: #000; }
+  #captionOutput { min-height: 140px; }
+  .download-btn {
+    display: inline-block;
+    background: var(--success);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    margin-top: 10px;
+  }
+  .note {
+    background: #fffbeb;
+    border-left: 3px solid var(--primary);
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #92400e;
+    border-radius: 4px;
+    margin-bottom: 14px;
+  }
+  details summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+  details ol { margin: 10px 0 0; padding-left: 20px; line-height: 1.8; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🎸 飲食店PRソング動画ジェネレーター</h1>
+    <p>店舗URL＋6本の動画素材から30秒のPR動画を自動生成</p>
+  </header>
+
+  <div class="note">
+    動画処理はブラウザ内（ffmpeg.wasm）で完結します。素材は外部送信されません。歌詞・キャプション生成だけGoogle Gemini APIを使います（無料枠あり）。
+  </div>
+
+  <section class="step">
+    <h2>① Google Gemini API Key（無料）</h2>
+    <input type="password" id="apiKey" placeholder="AIza... で始まるキーを貼り付け">
+    <details style="margin-top:10px;font-size:13px;">
+      <summary>▶ APIキーの取得＆Google Cloud設定手順（初回のみ・10分）</summary>
+      <ol>
+        <li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> をクリック → Googleアカウントでログイン → 「APIキーを作成」 → <code>AIza...</code> の文字列をコピー → このページの上の入力欄に貼り付け</li>
+        <li><strong>Google Cloud Billingを有効化</strong>：<a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">console.cloud.google.com/billing</a> で「請求先アカウントを作成」 → クレカ情報を登録 → 上で作ったAPIキーが紐づくプロジェクトにリンク</li>
+        <li>1〜2分待つと、APIが使えるようになります</li>
+      </ol>
+      <p class="hint" style="margin-top:10px;">
+        <strong>クレカ登録は必要ですが、通常利用なら課金されません。</strong>Tier 1の無料枠（1分2,000リクエスト・1日数千〜数万リクエスト）に収まる限り$0です。新規ユーザーには$300のクレジットも自動付与されます。心配なら<a href="https://console.cloud.google.com/billing/budgets" target="_blank" rel="noopener">予算アラート</a>で上限を設定してください。キーはこのブラウザにのみ保存され、外部送信されません。
+      </p>
+    </details>
+  </section>
+
+  <section class="step">
+    <h2>② 店舗情報＆歌詞生成</h2>
+    <label>店舗URL（公式サイト・食べログ・ぐるなび等）
+      <input type="text" id="storeURL" placeholder="https://...">
+    </label>
+    <button id="fetchInfoBtn" type="button" class="accent">URLから店舗情報を自動取得</button>
+    <p class="hint">URLが無い・うまく取れない場合は、下の欄に直接書き込んでも大丈夫です。</p>
+    <label style="margin-top:14px;">店舗情報（自動取得 or 手入力）
+      <textarea id="storeInfo" placeholder="店名:&#10;エリア:&#10;ジャンル:&#10;看板メニュー:&#10;雰囲気・特徴:"></textarea>
+    </label>
+    <button id="genLyricsBtn">歌詞を生成</button>
+    <div class="lyrics-grid" id="lyricsGrid"></div>
+    <p class="hint">生成された歌詞は手動で編集できます。</p>
+  </section>
+
+  <section class="step">
+    <h2>③ 動画素材アップロード（各5秒以上）</h2>
+    <div class="video-uploads" id="videoUploads"></div>
+    <h3>BGM（弾き語りマスター音源・任意）</h3>
+    <input type="file" id="bgmFile" accept="audio/*">
+  </section>
+
+  <section class="step">
+    <h2>④ 動画生成</h2>
+    <button id="renderBtn">30秒動画を生成</button>
+    <div id="progress"><div id="progressBar"></div></div>
+    <div id="status"></div>
+    <video id="output" controls hidden></video>
+    <a id="downloadLink" class="download-btn" download="pr_song_video.mp4" hidden>動画をダウンロード</a>
+  </section>
+
+  <section class="step">
+    <h2>⑤ Instagram投稿文</h2>
+    <button id="genCaptionBtn">キャプションを生成</button>
+    <textarea id="captionOutput" placeholder="ここに投稿用の文章が出ます..."></textarea>
+  </section>
+</div>
+
+<script src="./ffmpeg.js"></script>
+<script>
+window.FFmpegUtil = {
+  toBlobURL: async (url, mimeType) => {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    return URL.createObjectURL(blob);
+  },
+};
+</script>
+<script>
+const BLOCK_LABELS = [
+  { idx: 1, label: "フック（店名）", role: "店名 or キャッチコピー" },
+  { idx: 2, label: "立地・特徴", role: "店の場所や特徴" },
+  { idx: 3, label: "雰囲気", role: "誰と来る店か・店の雰囲気" },
+  { idx: 4, label: "看板メニュー", role: "看板メニュー登場" },
+  { idx: 5, label: "味の表現", role: "味・食感の表現" },
+  { idx: 6, label: "締め＋店名", role: "締めと店名リフレイン" },
+];
+const VIDEO_SLOT_LABELS = [
+  "1. 料理動画①", "2. 店外観", "3. 店内",
+  "4. 料理が届くシーン", "5. 料理アップ②", "6. 料理アップ③",
+];
+
+const apiKeyInput = document.getElementById("apiKey");
+apiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
+apiKeyInput.addEventListener("change", () => {
+  localStorage.setItem("gemini_api_key", apiKeyInput.value);
+});
+
+const lyricsGrid = document.getElementById("lyricsGrid");
+BLOCK_LABELS.forEach((b) => {
+  const row = document.createElement("div");
+  row.className = "lyric-row";
+  row.innerHTML = `<label>${b.idx}. ${b.label}</label><input type="text" id="lyric${b.idx}" placeholder="${b.role}">`;
+  lyricsGrid.appendChild(row);
+});
+
+const videoUploads = document.getElementById("videoUploads");
+VIDEO_SLOT_LABELS.forEach((label, i) => {
+  const slot = document.createElement("div");
+  slot.className = "video-slot";
+  slot.innerHTML = `<div>${label}</div><input type="file" data-idx="${i}" accept="video/*">`;
+  videoUploads.appendChild(slot);
+  const input = slot.querySelector("input");
+  input.addEventListener("change", () => {
+    if (input.files.length) slot.classList.add("filled");
+    else slot.classList.remove("filled");
+  });
+});
+
+async function callGemini(prompt, opts = {}) {
+  const apiKey = apiKeyInput.value.trim();
+  if (!apiKey) throw new Error("API Keyを入力してください");
+  const body = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: opts.temperature ?? 0.8 },
+  };
+  if (opts.useJson) body.generationConfig.responseMimeType = "application/json";
+  if (opts.useUrlContext) body.tools = [{ url_context: {} }];
+  const model = "gemini-2.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Gemini API ${res.status}: ${err}`);
+  }
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts;
+  if (!parts || !parts.length) throw new Error("レスポンスが空です: " + JSON.stringify(data));
+  const text = parts.map(p => p.text || "").join("").trim();
+  if (!text) throw new Error("テキストレスポンスが空です: " + JSON.stringify(data));
+  return text;
+}
+
+document.getElementById("fetchInfoBtn").addEventListener("click", async () => {
+  const urlInput = document.getElementById("storeURL").value.trim();
+  if (!urlInput) { alert("店舗URLを入力してください"); return; }
+  if (!/^https?:\/\//.test(urlInput)) { alert("URLは http:// または https:// で始まる必要があります"); return; }
+  const btn = document.getElementById("fetchInfoBtn");
+  btn.disabled = true; btn.textContent = "取得中...";
+  try {
+    const prompt = `次の飲食店のWebページを読み込んで、PRソング動画用の店舗情報を抽出してください。
+
+URL: ${urlInput}
+
+【出力形式】（情報がない項目は「不明」と記入）
+店名:
+エリア（市区町村まで）:
+ジャンル:
+看板メニュー（最大3つ）:
+雰囲気・特徴（誰と来る店か、お店のキャラクター）:
+価格帯:
+
+上記の形式のテキストだけを出力してください。前置きや説明は不要です。`;
+    const content = await callGemini(prompt, { useUrlContext: true, temperature: 0.3 });
+    document.getElementById("storeInfo").value = content;
+  } catch (e) {
+    alert("店舗情報の取得に失敗しました: " + e.message + "\n\n手入力でも進められます。");
+  } finally {
+    btn.disabled = false; btn.textContent = "URLから店舗情報を自動取得";
+  }
+});
+
+document.getElementById("genLyricsBtn").addEventListener("click", async () => {
+  const storeInfo = document.getElementById("storeInfo").value.trim();
+  if (!storeInfo) { alert("店舗情報を入力してください"); return; }
+  const btn = document.getElementById("genLyricsBtn");
+  btn.disabled = true; btn.textContent = "生成中...";
+  try {
+    const prompt = `あなたは飲食店PRソングの歌詞作家です。30秒動画CM用に、6ブロック構成の歌詞を生成してください。
+
+【厳守ルール】
+- 各ブロックは1〜2フレーズ、10〜14文字
+- 自然なメロディに乗る言葉選び（韻・語感を意識）
+- 最終ブロックには店名を必ず入れる
+
+【ブロック構成】
+1. フック：店名 or キャッチコピー
+2. 立地：店の場所・特徴
+3. 雰囲気：誰と来る店か
+4. 看板メニュー：看板メニュー登場
+5. 味の表現：味・食感
+6. 締め＋店名リフレイン
+
+【店舗情報】
+${storeInfo}
+
+【出力】
+{"block1":"...","block2":"...","block3":"...","block4":"...","block5":"...","block6":"..."} のJSONのみ出力。`;
+    const content = await callGemini(prompt, { useJson: true });
+    const lyrics = JSON.parse(content);
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById(`lyric${i}`).value = lyrics[`block${i}`] || "";
+    }
+  } catch (e) {
+    alert("歌詞生成エラー: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "歌詞を生成";
+  }
+});
+
+function renderLyricOverlay(text, width = 1080, height = 1920) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  const bandHeight = 240;
+  const bandY = height - bandHeight - 80;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(0, bandY, width, bandHeight);
+  ctx.fillStyle = "white";
+  ctx.font = 'bold 68px "Hiragino Sans","Yu Gothic",sans-serif';
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0,0,0,0.7)";
+  ctx.shadowBlur = 8;
+  const maxWidth = width - 80;
+  const lines = wrapText(ctx, text, maxWidth);
+  const lineHeight = 80;
+  const totalHeight = lines.length * lineHeight;
+  const startY = bandY + bandHeight / 2 - totalHeight / 2 + lineHeight / 2;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, width / 2, startY + i * lineHeight);
+  });
+  return canvas;
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const lines = [];
+  let current = "";
+  for (const ch of text) {
+    const test = current + ch;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = ch;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+// ffmpeg.wasm 0.12.15 を同一オリジンで自前ホスト
+const { FFmpeg } = FFmpegWASM;
+let ffmpeg = null;
+
+async function loadFFmpeg() {
+  if (ffmpeg) return ffmpeg;
+  ffmpeg = new FFmpeg();
+  ffmpeg.on("progress", ({ progress }) => {
+    const p = Math.max(0, Math.min(100, Math.round(progress * 100)));
+    document.getElementById("progressBar").style.width = `${p}%`;
+  });
+  ffmpeg.on("log", ({ message }) => console.log("[ffmpeg]", message));
+  // 同一オリジンのURLを直接渡す（blob変換すると Worker内の相対 import が壊れる）
+  const baseURL = window.location.origin;
+  await ffmpeg.load({
+    coreURL: `${baseURL}/ffmpeg-core.js`,
+    wasmURL: `${baseURL}/ffmpeg-core.wasm`,
+    classWorkerURL: `${baseURL}/814.ffmpeg.js`,
+  });
+  return ffmpeg;
+}
+
+document.getElementById("renderBtn").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  const renderBtn = document.getElementById("renderBtn");
+  const lyrics = [];
+  for (let i = 1; i <= 6; i++) {
+    const v = document.getElementById(`lyric${i}`).value.trim();
+    if (!v) { alert(`歌詞の${i}行目が空です`); return; }
+    lyrics.push(v);
+  }
+  const inputs = videoUploads.querySelectorAll('input[type="file"]');
+  const videoFiles = [];
+  for (let i = 0; i < 6; i++) {
+    if (!inputs[i].files.length) { alert(`動画${i + 1}が未選択です`); return; }
+    videoFiles.push(inputs[i].files[0]);
+  }
+  const bgmFile = document.getElementById("bgmFile").files[0];
+
+  renderBtn.disabled = true;
+  document.getElementById("progressBar").style.width = "0%";
+  status.textContent = "FFmpegを読み込み中（初回は数十MB）...";
+
+  try {
+    const ff = await loadFFmpeg();
+    status.textContent = "素材を準備中...";
+    for (let i = 0; i < 6; i++) {
+      const data = new Uint8Array(await videoFiles[i].arrayBuffer());
+      await ff.writeFile(`v${i}.mp4`, data);
+    }
+    for (let i = 0; i < 6; i++) {
+      const canvas = renderLyricOverlay(lyrics[i]);
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      const data = new Uint8Array(await blob.arrayBuffer());
+      await ff.writeFile(`o${i}.png`, data);
+    }
+    if (bgmFile) {
+      const data = new Uint8Array(await bgmFile.arrayBuffer());
+      await ff.writeFile("bgm.mp3", data);
+    }
+    status.textContent = "動画を結合中（数十秒〜数分）...";
+    const W = 1080, H = 1920;
+    let filter = "";
+    for (let i = 0; i < 6; i++) {
+      filter += `[${i}:v]trim=0:5,setpts=PTS-STARTPTS,scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[s${i}];`;
+      filter += `[s${i}][${i + 6}:v]overlay=0:0[v${i}];`;
+    }
+    filter += Array.from({ length: 6 }, (_, i) => `[v${i}]`).join("") + "concat=n=6:v=1:a=0[outv]";
+    const args = [];
+    for (let i = 0; i < 6; i++) args.push("-i", `v${i}.mp4`);
+    for (let i = 0; i < 6; i++) args.push("-i", `o${i}.png`);
+    if (bgmFile) args.push("-i", "bgm.mp3");
+    args.push("-filter_complex", filter, "-map", "[outv]");
+    if (bgmFile) args.push("-map", "12:a", "-shortest");
+    args.push("-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-r", "30");
+    if (bgmFile) args.push("-c:a", "aac", "-b:a", "128k");
+    args.push("-t", "30", "output.mp4");
+    await ff.exec(args);
+    status.textContent = "完成データを読み込み中...";
+    const data = await ff.readFile("output.mp4");
+    const blob = new Blob([data.buffer], { type: "video/mp4" });
+    const url = URL.createObjectURL(blob);
+    const video = document.getElementById("output");
+    video.src = url;
+    video.hidden = false;
+    const link = document.getElementById("downloadLink");
+    link.href = url;
+    link.hidden = false;
+    status.textContent = "✅ 完成しました！";
+  } catch (e) {
+    console.error("[render error]", e);
+    const msg = (e && (e.message || e.toString())) || JSON.stringify(e) || "原因不明（F12コンソールで詳細を確認してください）";
+    status.textContent = "エラー: " + msg;
+  } finally {
+    renderBtn.disabled = false;
+  }
+});
+
+document.getElementById("genCaptionBtn").addEventListener("click", async () => {
+  const storeInfo = document.getElementById("storeInfo").value.trim();
+  if (!storeInfo) { alert("店舗情報を入力してください"); return; }
+  const lyrics = [];
+  for (let i = 1; i <= 6; i++) lyrics.push(document.getElementById(`lyric${i}`).value);
+  const btn = document.getElementById("genCaptionBtn");
+  btn.disabled = true; btn.textContent = "生成中...";
+  try {
+    const prompt = `以下の店舗情報と歌詞をもとに、Instagram投稿用のキャプションを書いてください。
+
+【ルール】
+- 親しみやすく、絵文字1〜3個
+- 200〜300文字
+- 関連ハッシュタグ8〜12個（飲食ジャンル・エリア・雰囲気）
+- 改行で読みやすく
+
+【店舗情報】
+${storeInfo}
+
+【動画の歌詞】
+${lyrics.map((l, i) => `${i + 1}. ${l}`).join("\n")}
+
+キャプション本文だけを出力してください。`;
+    const content = await callGemini(prompt);
+    document.getElementById("captionOutput").value = content;
+  } catch (e) {
+    alert("キャプション生成エラー: " + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = "キャプションを生成";
+  }
+});
+</script>
+</body>
+</html>
